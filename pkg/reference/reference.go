@@ -72,7 +72,10 @@ func ToFloatPtrValue(v string) *float64 {
 	if v == "" {
 		return nil
 	}
-	f64, _ := strconv.ParseFloat(v, 64)
+	f64, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		panic(err)
+	}
 	return &f64
 }
 
@@ -110,7 +113,10 @@ func FromFloatPtrValues(v []*float64) []string {
 func ToFloatPtrValues(v []string) []*float64 {
 	var res = make([]*float64, len(v))
 	for i := 0; i < len(v); i++ {
-		f64, _ := strconv.ParseFloat(v[i], 64)
+		f64, err := strconv.ParseFloat(v[i], 64)
+		if err != nil {
+			panic(err)
+		}
 		res[i] = &f64
 	}
 	return res

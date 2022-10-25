@@ -105,6 +105,24 @@ func TestToAndFromFloatPtrValues(t *testing.T) {
 	}
 }
 
+func TestToFloatPtrValuesPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("ToFloatPtrValues did not panic")
+		}
+	}()
+	ToFloatPtrValues([]string{"not a float"})
+}
+
+func TestFromFloatPtrValuesPanic(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("FromFloatPtrValues did not panic")
+		}
+	}()
+	FromFloatPtrValues([]*float64{nil})
+}
+
 func TestResolve(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
