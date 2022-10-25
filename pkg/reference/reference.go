@@ -18,6 +18,7 @@ package reference
 
 import (
 	"context"
+	"strconv"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -50,12 +51,29 @@ func FromPtrValue(v *string) string {
 	return *v
 }
 
+// FromFloatPtrValue adapts a float64 pointer field for use as a CurrentValue.
+func FromFloatPtrValue(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.FormatFloat(*v, 'f', -1, 64)
+}
+
 // ToPtrValue adapts a ResolvedValue for use as a string pointer field.
 func ToPtrValue(v string) *string {
 	if v == "" {
 		return nil
 	}
 	return &v
+}
+
+// ToFloatPtrValue adapts a ResolvedValue for use as a float64 pointer field.
+func ToFloatPtrValue(v string) *float64 {
+	if v == "" {
+		return nil
+	}
+	f64, _ := strconv.ParseFloat(v, 32)
+	return &f64
 }
 
 // FromPtrValues adapts a slice of string pointer fields for use as CurrentValues.
@@ -67,6 +85,33 @@ func FromPtrValues(v []*string) []string {
 	var res = make([]string, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = FromPtrValue(v[i])
+	}
+	return res
+}
+
+// FromFloatPtrValues adapts a slice of float64 pointer fields for use as CurrentValues.
+// NOTE: Do not use this utility function unless you have to.
+// Using pointer slices does not adhere to our current API practices.
+// The current use case is where generated code creates reference-able fields in a provider which are
+// float pointers and need to be resolved as part of `ResolveMultiple`
+func FromFloatPtrValues(v []*float64) []string {
+	var res = make([]string, len(v))
+	for i := 0; i < len(v); i++ {
+		res[i] = strconv.FormatFloat(*v[i], 'f', -1, 64)
+	}
+	return res
+}
+
+// ToPtrValues adapts ResolvedValues for use as a slice of string pointer fields.
+// NOTE: Do not use this utility function unless you have to.
+// Using pointer slices does not adhere to our current API practices.
+// The current use case is where generated code creates reference-able fields in a provider which are
+// string pointers and need to be resolved as part of `ResolveMultiple`
+func ToFloatPtrValues(v []string) []*float64 {
+	var res = make([]*float64, len(v))
+	for i := 0; i < len(v); i++ {
+		f64, _ := strconv.ParseFloat(v[i], 32)
+		res[i] = &f64
 	}
 	return res
 }

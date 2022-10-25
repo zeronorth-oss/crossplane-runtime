@@ -86,6 +86,25 @@ func TestToAndFromPtrValues(t *testing.T) {
 	}
 }
 
+func TestToAndFromFloatPtrValues(t *testing.T) {
+	cases := map[string]struct {
+		want []string
+	}{
+		"Nil":      {want: []string{}},
+		"Zero":     {want: []string{"0"}},
+		"NonZero":  {want: []string{"1"}},
+		"Multiple": {want: []string{"1", "2"}},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := FromFloatPtrValues(ToFloatPtrValues(tc.want))
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("FromFloatPtrValues(ToFloatPtrValues(%s): -want, +got: %s", tc.want, diff)
+			}
+		})
+	}
+}
+
 func TestResolve(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
