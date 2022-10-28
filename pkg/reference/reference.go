@@ -41,21 +41,23 @@ const (
 	errNoValue     = "referenced field was empty (referenced resource may not yet be ready)"
 )
 
+type IsSupported interface {
+	*float64 | *string | []*float64 | []*string
+}
+
 // NOTE(negz): There are many equivalents of FromPtrValue and ToPtrValue
 // throughout the Crossplane codebase. We duplicate them here to reduce the
 // number of packages our API types have to import to support references.
-
 // FromPtrValue adapts a string pointer field for use as a CurrentValue.
-func FromPtrValue[T any](v *T) string {
-	if v == nil {
-		return ""
-	}
-	t := reflect.TypeOf(*v)
-
-	if t.Kind() == reflect.Float64 {
-		return fmt.Sprintf("%f", t)
-	} else {
-		panic(fmt.Sprintf("Type not supported: %s", t.Kind()))
+func FromPtrValue[T IsSupported](v T) string {
+	vo := reflect.ValueOf(v).Elem()
+	switch t := any(v).(type) {
+	case *string:
+		return fmt.Sprintf("%s", vo.String())
+	case *float64:
+		return strconv.FormatFloat(vo.Float(), 'f', -1, 64)
+	default:
+		panic(fmt.Sprintf("Type not supported: %s", t))
 	}
 }
 
@@ -64,39 +66,29 @@ func FromPtrValue[T any](v *T) string {
 // Using pointer slices does not adhere to our current API practices.
 // The current use case is where generated code creates reference-able fields in a provider which are
 // string pointers and need to be resolved as part of `ResolveMultiple`
-func FromPtrValues[T any](v []*T) []string {
+func FromPtrValues[T IsSupported](v []T) []string {
 	var res = make([]string, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		res[i] = FromPtrValue(v[i])
 	}
 	return res
 }
 
 // ToPtrValue adapts a ResolvedValue for use as a string pointer field.
-func ToPtrValue[T any](v string, out T) error {
-	t := reflect.TypeOf(out)
-	if t.Kind() != reflect.Ptr {
-		return errors.Errorf("ToPtrValue expects a pointer type, got %s", t.Kind())
-	}
-	vo := reflect.ValueOf(out)
-	if vo.IsNil() {
-		return errors.New("ToPtrValue expects a non-nil pointer")
-	}
-	vo = vo.Elem()
-	t = vo.Type()
-
-	if t.Kind() == reflect.Float64 {
+func ToPtrValue[T IsSupported](v string) (out T) {
+	switch t := any(out).(type) {
+	case *float64:
 		f, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return err
+			panic(fmt.Sprintf("ParseFloat error: %v", err))
 		}
-
-		reflect.ValueOf(out).Elem().SetFloat(f)
-	} else {
-		panic(fmt.Sprintf("Type not supported: %s", t.Kind()))
+		reflect.ValueOf(&out).Elem().Set(reflect.ValueOf(&f))
+	case *string:
+		reflect.ValueOf(&out).Elem().Set(reflect.ValueOf(&v))
+	default:
+		panic(fmt.Sprintf("Type not supported: %s", t))
 	}
-
-	return nil
+	return out
 }
 
 // ToPtrValues adapts ResolvedValues for use as a slice of string pointer fields.
@@ -104,14 +96,13 @@ func ToPtrValue[T any](v string, out T) error {
 // Using pointer slices does not adhere to our current API practices.
 // The current use case is where generated code creates reference-able fields in a provider which are
 // string pointers and need to be resolved as part of `ResolveMultiple`
-func ToPtrValues[T any](v []string, out T) error {
-	var res = make([]*string, len(v))
-	for i := 0; i < len(v); i++ {
-		if err := ToPtrValue(v[i], &res[i]); err != nil {
-			return err
-		}
+func ToPtrValues[T IsSupported](vs []string) []T {
+	out := make([]T, len(vs))
+	for i := range vs {
+		ptr := ToPtrValue[T](vs[i])
+		out[i] = any(ptr).(T)
 	}
-	return nil
+	return out
 }
 
 // To indicates the kind of managed resource a reference is to.
