@@ -19,10 +19,7 @@ package reference
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strconv"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Error strings.
@@ -41,24 +39,49 @@ const (
 	errNoValue     = "referenced field was empty (referenced resource may not yet be ready)"
 )
 
-type IsSupported interface {
-	*float64 | *string | []*float64 | []*string
+type supported interface {
+	float64 | float32 | string
+}
+
+func ToValue[T supported](v string) (out T) {
+	switch t := any(out).(type) {
+	case float64:
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			panic(fmt.Sprintf("ParseFloat error: %v", err))
+		}
+		return any(f).(T)
+	case float32:
+		f, err := strconv.ParseFloat(v, 32)
+		if err != nil {
+			panic(fmt.Sprintf("ParseFloat error: %v", err))
+		}
+		return any(f).(T)
+	case string:
+		return any(v).(T)
+	default:
+		panic(fmt.Sprintf("Type not supported: %s", t))
+	}
+}
+
+func FromValue[T supported](v T) string {
+	switch t := any(v).(type) {
+	case string:
+		return any(v).(string)
+	case float64:
+		return strconv.FormatFloat(any(v).(float64), 'f', -1, 64)
+	default:
+		panic(fmt.Sprintf("Type not supported: %s", t))
+	}
 }
 
 // NOTE(negz): There are many equivalents of FromPtrValue and ToPtrValue
 // throughout the Crossplane codebase. We duplicate them here to reduce the
 // number of packages our API types have to import to support references.
 // FromPtrValue adapts a string pointer field for use as a CurrentValue.
-func FromPtrValue[T IsSupported](v T) string {
-	vo := reflect.ValueOf(v).Elem()
-	switch t := any(v).(type) {
-	case *string:
-		return fmt.Sprintf("%s", vo.String())
-	case *float64:
-		return strconv.FormatFloat(vo.Float(), 'f', -1, 64)
-	default:
-		panic(fmt.Sprintf("Type not supported: %s", t))
-	}
+func FromPtrValue[T supported](v *T) string {
+	val := FromValue(*v)
+	return val
 }
 
 // FromPtrValues adapts a slice of string pointer fields for use as CurrentValues.
@@ -66,7 +89,7 @@ func FromPtrValue[T IsSupported](v T) string {
 // Using pointer slices does not adhere to our current API practices.
 // The current use case is where generated code creates reference-able fields in a provider which are
 // string pointers and need to be resolved as part of `ResolveMultiple`
-func FromPtrValues[T IsSupported](v []T) []string {
+func FromPtrValues[T supported](v []*T) []string {
 	var res = make([]string, len(v))
 	for i := range v {
 		res[i] = FromPtrValue(v[i])
@@ -75,20 +98,9 @@ func FromPtrValues[T IsSupported](v []T) []string {
 }
 
 // ToPtrValue adapts a ResolvedValue for use as a string pointer field.
-func ToPtrValue[T IsSupported](v string) (out T) {
-	switch t := any(out).(type) {
-	case *float64:
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			panic(fmt.Sprintf("ParseFloat error: %v", err))
-		}
-		reflect.ValueOf(&out).Elem().Set(reflect.ValueOf(&f))
-	case *string:
-		reflect.ValueOf(&out).Elem().Set(reflect.ValueOf(&v))
-	default:
-		panic(fmt.Sprintf("Type not supported: %s", t))
-	}
-	return out
+func ToPtrValue[T supported](v string) (out *T) {
+	val := ToValue[T](v)
+	return &val
 }
 
 // ToPtrValues adapts ResolvedValues for use as a slice of string pointer fields.
@@ -96,11 +108,11 @@ func ToPtrValue[T IsSupported](v string) (out T) {
 // Using pointer slices does not adhere to our current API practices.
 // The current use case is where generated code creates reference-able fields in a provider which are
 // string pointers and need to be resolved as part of `ResolveMultiple`
-func ToPtrValues[T IsSupported](vs []string) []T {
-	out := make([]T, len(vs))
+func ToPtrValues[T supported](vs []string) []*T {
+	out := make([]*T, len(vs))
 	for i := range vs {
 		ptr := ToPtrValue[T](vs[i])
-		out[i] = any(ptr).(T)
+		out[i] = any(ptr).(*T)
 	}
 	return out
 }

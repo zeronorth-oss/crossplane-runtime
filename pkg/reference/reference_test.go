@@ -75,13 +75,13 @@ func TestToPtrFromPtrValue(t *testing.T) {
 			var got string
 			switch typ := tc.have.(type) {
 			case string:
-				ptr := ToPtrValue[*string](tc.want)
+				ptr := ToPtrValue[string](tc.want)
 				got = FromPtrValue(ptr)
 				if diff := cmp.Diff(tc.want, got); diff != "" {
 					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
 				}
 			case float64:
-				ptr := ToPtrValue[*float64](tc.want)
+				ptr := ToPtrValue[float64](tc.want)
 				got = FromPtrValue(ptr)
 				if diff := cmp.Diff(tc.want, got); diff != "" {
 					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
@@ -120,13 +120,13 @@ func TestToPtrFromPtrValues(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			switch tc.have.(type) {
 			case []string:
-				ptrs := ToPtrValues[*string](tc.have.([]string))
+				ptrs := ToPtrValues[string](tc.have.([]string))
 				got := FromPtrValues(ptrs)
 				if diff := cmp.Diff(tc.want, got); diff != "" {
 					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
 				}
 			case []float64:
-				ptrs := ToPtrValues[*float64](tc.want)
+				ptrs := ToPtrValues[float64](tc.want)
 				got := FromPtrValues(ptrs)
 				if diff := cmp.Diff(tc.want, got); diff != "" {
 					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
