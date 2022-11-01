@@ -47,44 +47,94 @@ func (fml *FakeManagedList) GetItems() []resource.Managed {
 	return fml.Items
 }
 
-// func TestToAndFromPtr(t *testing.T) {
-// 	cases := map[string]struct {
-// 		want string
-// 	}{
-// 		"Zero":    {want: ""},
-// 		"NonZero": {want: "pointy"},
-// 	}
-// 	for name, tc := range cases {
-// 		t.Run(name, func(t *testing.T) {
-// 			got := FromPtrValue(ToPtrValue(tc.want))
-// 			if diff := cmp.Diff(tc.want, got); diff != "" {
-// 				t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
+func TestToPtrFromPtrValue(t *testing.T) {
+	cases := map[string]struct {
+		have any
+		want string
+	}{
+		"ZeroString": {
+			have: "",
+			want: "",
+		},
+		"NonZeroString": {
+			have: "TEST",
+			want: "TEST",
+		},
+		"ZeroFloat64": {
+			have: float64(0),
+			want: "0",
+		},
+		"NonZeroFloat64": {
+			have: float64(12345),
+			want: "12345",
+		},
+	}
 
-// 			}
-// 		})
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var got string
+			switch typ := tc.have.(type) {
+			case string:
+				ptr := ToPtrValue[*string](tc.want)
+				got = FromPtrValue(ptr)
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
+				}
+			case float64:
+				ptr := ToPtrValue[*float64](tc.want)
+				got = FromPtrValue(ptr)
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
+				}
+			default:
+				t.Errorf("Cannot run test for unsupported type: %t", typ)
+			}
+		})
+	}
+}
 
-// 	}
-// }
+func TestToPtrFromPtrValues(t *testing.T) {
+	cases := map[string]struct {
+		have any
+		want []string
+	}{
+		"ZeroString": {
+			have: []string{""},
+			want: []string{""},
+		},
+		"ZeroFloat64": {
+			have: []float64{0},
+			want: []string{"0"},
+		},
+		"MultipleString": {
+			have: []string{"one", "two", "three"},
+			want: []string{"one", "two", "three"},
+		},
+		"MultipleFloat64": {
+			have: []float64{1, 2, 3},
+			want: []string{"1", "2", "3"},
+		},
+	}
 
-// func TestToAndFromPtrValues(t *testing.T) {
-// 	cases := map[string]struct {
-// 		want []string
-// 	}{
-// 		"Nil":      {want: []string{}},
-// 		"Zero":     {want: []string{""}},
-// 		"NonZero":  {want: []string{"pointy"}},
-// 		"Multiple": {want: []string{"pointy", "pointers"}},
-// 	}
-// 	for name, tc := range cases {
-// 		t.Run(name, func(t *testing.T) {
-// 			got := FromPtrValues(ToPtrValues(tc.want))
-// 			if diff := cmp.Diff(tc.want, got); diff != "" {
-// 				t.Errorf("FromPtrValues(ToPtrValues(%s): -want, +got: %s", tc.want, diff)
-
-// 			}
-// 		})
-// 	}
-// }
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			switch tc.have.(type) {
+			case []string:
+				ptrs := ToPtrValues[*string](tc.have.([]string))
+				got := FromPtrValues(ptrs)
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
+				}
+			case []float64:
+				ptrs := ToPtrValues[*float64](tc.want)
+				got := FromPtrValues(ptrs)
+				if diff := cmp.Diff(tc.want, got); diff != "" {
+					t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
+				}
+			}
+		})
+	}
+}
 
 func TestResolve(t *testing.T) {
 	errBoom := errors.New("boom")
